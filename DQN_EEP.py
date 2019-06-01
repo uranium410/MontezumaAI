@@ -2,13 +2,13 @@
 
 
 import gym
-import numpy as numpy
+import numpy as np
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import torchvision.transforms as T
+#import torchvision.transforms as T
 
 RESULT_DISPLAY_TIMES = 10
 EPISODE_NUM = 1
@@ -24,6 +24,7 @@ class DQN(nn.Module):
  
     def __init__(self):
         super(DQN, self).__init__()
+        #self.conv1 = nn.Conv2d(3, 16, kernel_size=5, stride=2)
         self.conv1 = nn.Conv2d(3, 16, kernel_size=5, stride=2)
         self.bn1 = nn.BatchNorm2d(16)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=5, stride=2)
@@ -64,11 +65,14 @@ for episode in range(EPISODE_NUM):
 
         # EELearning()
         nnInput = torch.FloatTensor([next_obserbation])
+        nnInput = nnInput.transpose(1,3)
+        nnInput = nnInput.transpose(2,3)
         print(nnInput.size())
-        #network.forward(nnInput)
+        action = network.forward(nnInput)
         #print(network.forward(tensorObs))
 
-        action = 5
+        # tentative
+        action = env.action_space.sample()
         next_obserbation, reward, done, info = env.step(action)
         #env.render()
 
