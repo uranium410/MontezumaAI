@@ -31,12 +31,16 @@ class DQN(nn.Module):
         self.bn2 = nn.BatchNorm2d(32)
         self.conv3 = nn.Conv2d(32, 32, kernel_size=5, stride=2)
         self.bn3 = nn.BatchNorm2d(32)
-        self.head = nn.Linear(448, 18)
+        #self.head = nn.Linear(448, 18)
+        self.head = nn.Linear(32*23*23,18)
  
     def forward(self, x):
         x = F.relu(self.bn1(self.conv1(x)))
+        print(x.shape)
         x = F.relu(self.bn2(self.conv2(x)))
+        print(x.shape)
         x = F.relu(self.bn3(self.conv3(x)))
+        print(x.shape)
         return self.head(x.view(x.size(0), -1))
 
 # Add representative state for first partition
@@ -59,16 +63,24 @@ for episode in range(EPISODE_NUM):
 
         # Add a new rep. state every T_add seps
 
-
-
         # DQN()
 
         # EELearning()
-        nnInput = torch.FloatTensor([next_obserbation])
+        reshapeArray = np.zeros([210,25,3])
+        inputGraph = np.concatenate((reshapeArray,next_obserbation),axis = 1)
+        inputGraph = np.concatenate((inputGraph, reshapeArray),axis = 1)
+
+        print(inputGraph.shape)
+
+        nnInput = torch.FloatTensor([inputGraph])
         nnInput = nnInput.transpose(1,3)
         nnInput = nnInput.transpose(2,3)
         print(nnInput.size())
-        action = network.forward(nnInput)
+        Qtable = network.forward(nnInput)
+
+        print(Qtable)
+
+        break
         #print(network.forward(tensorObs))
 
         # tentative
