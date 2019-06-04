@@ -36,11 +36,8 @@ class DQN(nn.Module):
  
     def forward(self, x):
         x = F.relu(self.bn1(self.conv1(x)))
-        print(x.shape)
         x = F.relu(self.bn2(self.conv2(x)))
-        print(x.shape)
         x = F.relu(self.bn3(self.conv3(x)))
-        print(x.shape)
         return self.head(x.view(x.size(0), -1))
 
 # Add representative state for first partition
@@ -70,23 +67,20 @@ for episode in range(EPISODE_NUM):
         inputGraph = np.concatenate((reshapeArray,next_obserbation),axis = 1)
         inputGraph = np.concatenate((inputGraph, reshapeArray),axis = 1)
 
-        print(inputGraph.shape)
+        #conversion Inputdata for network
+        nnInput = torch.FloatTensor([inputGraph]).transpose(1,3).transpose(2,3)
 
-        nnInput = torch.FloatTensor([inputGraph])
-        nnInput = nnInput.transpose(1,3)
-        nnInput = nnInput.transpose(2,3)
-        print(nnInput.size())
         Qtable = network.forward(nnInput)
 
-        print(Qtable)
+        #select action from Qtable
+        action = np.argmax(Qtable.detach().numpy())
 
-        break
         #print(network.forward(tensorObs))
 
         # tentative
         action = env.action_space.sample()
         next_obserbation, reward, done, info = env.step(action)
-        #env.render()
+        env.render()
 
         if done:
             break
