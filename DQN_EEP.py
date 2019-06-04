@@ -15,6 +15,7 @@ from collections import namedtuple
 RESULT_DISPLAY_TIMES = 10
 EPISODE_NUM = 1
 ACTION_NUM = 18
+MEMORY_CAPACITY = 1024
 
 env = gym.make('MontezumaRevenge-v0')
 
@@ -82,7 +83,7 @@ class ReplayMemory():
         return len(self.memory)
 
 #Update DQN
-def Update_Network():
+def Update_Network(memory):
     return
 
 # Add representative state for first partition
@@ -94,6 +95,7 @@ for episode in range(EPISODE_NUM):
     #reset episode
     next_obserbation = env.reset()
     total_reward = 0
+    memory = ReplayMemory(MEMORY_CAPACITY)
 
     while True:
         # Determine the current partition
@@ -120,15 +122,20 @@ for episode in range(EPISODE_NUM):
         #select action from Qtable
         action = Epsilon_Greedy(np.argmax(Qtable.detach().numpy()),episode)
 
-        #print(network.forward(tensorObs))
-
         # tentative
         action = env.action_space.sample()
+        obserbation = next_obserbation
         next_obserbation, reward, done, info = env.step(action)
         env.render()
 
+        #store dat
+        memory.push(obserbation, action, next_obserbation, reward)
+
         if done:
             break
+
+    #Update network
+    Update_Network(memory)
 
     # Update all partitions' visit counts based on v
     if episode % RESULT_DISPLAY_TIMES == 0 or episode == EPISODE_NUM-1:
