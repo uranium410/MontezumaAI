@@ -10,8 +10,13 @@ import torch.optim as optim
 import torch.nn.functional as F
 #import torchvision.transforms as T
 
+import random
+
+import math
+
 RESULT_DISPLAY_TIMES = 10
 EPISODE_NUM = 1
+ACTION_NUM = 18
 
 env = gym.make('MontezumaRevenge-v0')
 
@@ -39,6 +44,24 @@ class DQN(nn.Module):
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
         return self.head(x.view(x.size(0), -1))
+
+
+#Epsilon Greedy Method
+EPS_START = 0.9
+EPS_END = 0.05
+EPS_DECAY = 200
+ 
+def Epsilon_Greedy(action, episode):
+    sample = random.random()
+    eps_threshold = EPS_END + (EPS_START - EPS_END) * \
+        math.exp(-1. * episode / EPS_DECAY)
+    if sample > eps_threshold:
+        return action
+    else:
+        return random.randrange(ACTION_NUM)
+
+#Update DQN
+
 
 # Add representative state for first partition
 
@@ -73,7 +96,7 @@ for episode in range(EPISODE_NUM):
         Qtable = network.forward(nnInput)
 
         #select action from Qtable
-        action = np.argmax(Qtable.detach().numpy())
+        action = Epsilon_Greedy(np.argmax(Qtable.detach().numpy()),episode)
 
         #print(network.forward(tensorObs))
 
