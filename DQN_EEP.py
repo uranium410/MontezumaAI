@@ -115,15 +115,13 @@ for episode in range(EPISODE_NUM):
         inputGraph = np.concatenate((inputGraph, reshapeArray),axis = 1)
 
         #conversion Inputdata for network
-        nnInput = torch.FloatTensor([inputGraph]).transpose(1,3).transpose(2,3)
+        nnInput = torch.FloatTensor([inputGraph]).transpose(1,3)#.transpose(2,3)
 
         Qtable = network.forward(nnInput)
 
         #select action from Qtable
         action = Epsilon_Greedy(np.argmax(Qtable.detach().numpy()),episode)
 
-        # tentative
-        action = env.action_space.sample()
         obserbation = next_obserbation
         next_obserbation, reward, done, info = env.step(action)
         env.render()
