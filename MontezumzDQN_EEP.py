@@ -74,7 +74,7 @@ import torch.nn.functional as F
 import torchvision.transforms as T
 
 
-env = gym.make('CartPole-v0').unwrapped
+env = gym.make('MontezumaRevenge-v0').unwrapped
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -255,7 +255,16 @@ def get_cart_location(screen_width):
     scale = screen_width / world_width
     return int(env.state[0] * scale + screen_width / 2.0)  # MIDDLE OF CART
 
-def get_screen():
+def get_screen(next_obserbation):
+        reshapeArray = np.zeros([210,25,3])
+        inputGraph = np.concatenate((reshapeArray,next_obserbation),axis = 1)
+        inputGraph = np.concatenate((inputGraph, reshapeArray),axis = 1)
+
+        #conversion Inputdata for network
+        nnInput = torch.FloatTensor([inputGraph]).transpose(1,3)#.transpose(2,3)
+
+        return nnInput
+        """
     # Returned screen requested by gym is 400x600x3, but is sometimes larger
     # such as 800x1200x3. Transpose it into torch order (CHW).
     screen = env.render(mode='rgb_array').transpose((2, 0, 1))
@@ -279,14 +288,15 @@ def get_screen():
     screen = torch.from_numpy(screen)
     # Resize, and add a batch dimension (BCHW)
     return resize(screen).unsqueeze(0).to(device)
+        """
 
 
-env.reset()
-plt.figure()
-plt.imshow(get_screen().cpu().squeeze(0).permute(1, 2, 0).numpy(),
-           interpolation='none')
-plt.title('Example extracted screen')
-plt.show()
+inputGraph = env.reset()
+#plt.figure()
+#plt.imshow(get_screen(inputGraph).cpu().squeeze(0).permute(1, 2, 0).numpy(),
+#           interpolation='none')
+#plt.title('Example extracted screen')
+#plt.show()
 
 
 ######################################################################
@@ -321,7 +331,7 @@ TARGET_UPDATE = 10
 # Get screen size so that we can initialize layers correctly based on shape
 # returned from AI gym. Typical dimensions at this point are close to 3x40x90
 # which is the result of a clamped and down-scaled render buffer in get_screen()
-init_screen = get_screen()
+init_screen = get_screen(inputGraph)
 _, _, screen_height, screen_width = init_screen.shape
 
 # Get number of actions from gym action space
@@ -454,24 +464,26 @@ def optimize_model():
 # duration improvements.
 #
 
-num_episodes = 1000
+num_episodes = 1
 for i_episode in range(num_episodes):
     # Initialize the environment and state
-    env.reset()
-    last_screen = get_screen()
-    current_screen = get_screen()
-    state = current_screen - last_screen
+    inputGraph = env.reset()
+    last_screen = get_screen(inputGraph)
+    current_screen = last_screen
+    state = current_screen
     for t in count():
         # Select and perform an action
         action = select_action(state)
-        _, reward, done, _ = env.step(action.item())
+        inputGraph, reward, done, _ = env.step(action.item())
         reward = torch.tensor([reward], device=device)
 
-        # Observe new state
+        env.render()
+
+        # Observe new stat
         last_screen = current_screen
-        current_screen = get_screen()
+        current_screen = get_screen(inputGraph)
         if not done:
-            next_state = current_screen - last_screen
+            next_state = current_screen
         else:
             next_state = None
 
