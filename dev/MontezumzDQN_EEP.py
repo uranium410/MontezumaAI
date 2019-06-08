@@ -73,6 +73,18 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
+RENDER = False
+
+EPISODES_NUM = 1000
+
+BATCH_SIZE = 128
+GAMMA = 0.999
+
+#epsilon_greedy
+EPS_START = 0.9
+EPS_END = 0.05
+EPS_DECAY = 2000
+TARGET_UPDATE = 10
 
 env = gym.make('MontezumaRevenge-v0').unwrapped
 
@@ -85,6 +97,7 @@ plt.ion()
 
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(device)
 
 
 ######################################################################
@@ -249,11 +262,10 @@ resize = T.Compose([T.ToPILImage(),
                     T.Resize(40, interpolation=Image.CUBIC),
                     T.ToTensor()])
 
-
-def get_cart_location(screen_width):
-    world_width = env.x_threshold * 2
-    scale = screen_width / world_width
-    return int(env.state[0] * scale + screen_width / 2.0)  # MIDDLE OF CART
+    #def get_cart_location(screen_width):
+    #world_width = env.x_threshold * 2
+    #scale = screen_width / world_width
+    #return int(env.state[0] * scale + screen_width / 2.0)  # MIDDLE OF CART
 
 def get_screen(next_obserbation):
         reshapeArray = np.zeros([210,25,3])
@@ -321,13 +333,6 @@ inputGraph = env.reset()
 #    episode.
 #
 
-BATCH_SIZE = 128
-GAMMA = 0.999
-EPS_START = 0.9
-EPS_END = 0.05
-EPS_DECAY = 200
-TARGET_UPDATE = 10
-
 # Get screen size so that we can initialize layers correctly based on shape
 # returned from AI gym. Typical dimensions at this point are close to 3x40x90
 # which is the result of a clamped and down-scaled render buffer in get_screen()
@@ -337,13 +342,20 @@ _, _, screen_height, screen_width = init_screen.shape
 # Get number of actions from gym action space
 n_actions = env.action_space.n
 
-policy_net = DQN(screen_height, screen_width, n_actions).to(device)
-target_net = DQN(screen_height, screen_width, n_actions).to(device)
+#policy_net = DQN(screen_height, screen_width, n_actions).to(device)
+#target_net = DQN(screen_height, screen_width, n_actions).to(device)
+if device == "cuda":
+    policy_net = DQN(screen_height, screen_width, n_actions).cuda()
+    target_net = DQN(screen_height, screen_width, n_actions).cuda()
+else:
+    policy_net = DQN(screen_height, screen_width, n_actions)
+    target_net = DQN(screen_height, screen_width, n_actions)
+
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
 optimizer = optim.RMSprop(policy_net.parameters())
-memory = ReplayMemory(10000)
+memory = ReplayMemory(100)
 
 
 steps_done = 0
@@ -357,11 +369,13 @@ def select_action(state):
     steps_done += 1
     if sample > eps_threshold:
         with torch.no_grad():
+            #print("policy_net")
             # t.max(1) will return largest column value of each row.
             # second column on max result is index of where max element was
             # found, so we pick action with the larger expected reward.
             return policy_net(state).max(1)[1].view(1, 1)
     else:
+        #print("random")
         return torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long)
 
 
@@ -464,7 +478,7 @@ def optimize_model():
 # duration improvements.
 #
 
-num_episodes = 1
+num_episodes = EPISODES_NUM
 for i_episode in range(num_episodes):
     # Initialize the environment and state
     inputGraph = env.reset()
@@ -474,10 +488,12 @@ for i_episode in range(num_episodes):
     for t in count():
         # Select and perform an action
         action = select_action(state)
+        #print(action.item())
         inputGraph, reward, done, _ = env.step(action.item())
         reward = torch.tensor([reward], device=device)
 
-        env.render()
+        if RENDER:
+            env.render()
 
         # Observe new stat
         last_screen = current_screen
