@@ -466,6 +466,13 @@ def optimize_model():
 
 
 ######################################################################
+# Exploration Effort Partitioning
+#
+#
+def Exploration_Effort():
+    return
+
+######################################################################
 #
 # Below, you can find the main training loop. At the beginning we reset
 # the environment and initialize the ``state`` Tensor. Then, we sample
