@@ -86,6 +86,9 @@ EPS_END = 0.05
 EPS_DECAY = 2000
 TARGET_UPDATE = 10
 
+#for EEP
+ACTION_NUM = 18
+
 env = gym.make('MontezumaRevenge-v0').unwrapped
 
 # set up matplotlib
@@ -469,7 +472,17 @@ def optimize_model():
 # Exploration Effort Partitioning
 #
 #
-def Exploration_Effort():
+action_list = []
+
+
+def Exploration_Effort(action):
+    Aux_rewward = np.full(ACTION_NUM,-1/ACTION_NUM)
+    Aux_rewward[action] = 1-1/ACTION_NUM
+
+    #print(Aux_rewward)
+
+    action_list.append(action)
+
     return
 
 ######################################################################
@@ -500,7 +513,10 @@ while continue_epsode:
             action = select_action(state)
             #print(action.item())
             inputGraph, reward, done, _ = env.step(action.item())
-            reward = torch.tensor([reward], device=device)
+
+            reward = 0
+            Exploration_Effort(action.item())
+            reward += torch.tensor([reward], device=device)
 
             if RENDER:
                 env.render()
