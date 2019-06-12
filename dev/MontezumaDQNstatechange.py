@@ -73,11 +73,11 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
-RENDER = False
+RENDER = True
 
 EPISODES_NUM = 5
 
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 GAMMA = 0.999
 
 #epsilon_greedy
@@ -86,7 +86,7 @@ EPS_END = 0.05
 EPS_DECAY = 2000
 TARGET_UPDATE = 10
 
-env = gym.make('Breakout-v0').unwrapped
+env = gym.make('MontezumaRevenge-v0').unwrapped
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
