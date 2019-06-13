@@ -1,61 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Reinforcement Learning (DQN) Tutorial
-=====================================
-**Author**: `Adam Paszke <https://github.com/apaszke>`_
 
-
-This tutorial shows how to use PyTorch to train a Deep Q Learning (DQN) agent
-on the CartPole-v0 task from the `OpenAI Gym <https://gym.openai.com/>`__.
-
-**Task**
-
-The agent has to decide between two actions - moving the cart left or
-right - so that the pole attached to it stays upright. You can find an
-official leaderboard with various algorithms and visualizations at the
-`Gym website <https://gym.openai.com/envs/CartPole-v0>`__.
-
-.. figure:: /_static/img/cartpole.gif
-   :alt: cartpole
-
-   cartpole
-
-As the agent observes the current state of the environment and chooses
-an action, the environment *transitions* to a new state, and also
-returns a reward that indicates the consequences of the action. In this
-task, rewards are +1 for every incremental timestep and the environment
-terminates if the pole falls over too far or the cart moves more then 2.4
-units away from center. This means better performing scenarios will run
-for longer duration, accumulating larger return.
-
-The CartPole task is designed so that the inputs to the agent are 4 real
-values representing the environment state (position, velocity, etc.).
-However, neural networks can solve the task purely by looking at the
-scene, so we'll use a patch of the screen centered on the cart as an
-input. Because of this, our results aren't directly comparable to the
-ones from the official leaderboard - our task is much harder.
-Unfortunately this does slow down the training, because we have to
-render all the frames.
-
-Strictly speaking, we will present the state as the difference between
-the current screen patch and the previous one. This will allow the agent
-to take the velocity of the pole into account from one image.
-
-**Packages**
-
-
-First, let's import needed packages. Firstly, we need
-`gym <https://gym.openai.com/docs>`__ for the environment
-(Install using `pip install gym`).
-We'll also use the following from PyTorch:
-
--  neural networks (``torch.nn``)
--  optimization (``torch.optim``)
--  automatic differentiation (``torch.autograd``)
--  utilities for vision tasks (``torchvision`` - `a separate
-   package <https://github.com/pytorch/vision>`__).
-
-"""
 
 import gym
 import math
@@ -73,8 +17,20 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
+RENDER = True
 
-env = gym.make('CartPole-v0').unwrapped
+EPISODES_NUM = 5
+
+BATCH_SIZE = 32
+GAMMA = 0.999
+
+#epsilon_greedy
+EPS_START = 0.9
+EPS_END = 0.05
+EPS_DECAY = 2000
+TARGET_UPDATE = 10
+
+env = gym.make('Breakout-v0').unwrapped
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -85,28 +41,10 @@ plt.ion()
 
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(device)
 
 
-######################################################################
 # Replay Memory
-# -------------
-#
-# We'll be using experience replay memory for training our DQN. It stores
-# the transitions that the agent observes, allowing us to reuse this data
-# later. By sampling from it randomly, the transitions that build up a
-# batch are decorrelated. It has been shown that this greatly stabilizes
-# and improves the DQN training procedure.
-#
-# For this, we're going to need two classses:
-#
-# -  ``Transition`` - a named tuple representing a single transition in
-#    our environment. It essentially maps (state, action) pairs
-#    to their (next_state, reward) result, with the state being the
-#    screen difference image as described later on.
-# -  ``ReplayMemory`` - a cyclic buffer of bounded size that holds the
-#    transitions observed recently. It also implements a ``.sample()``
-#    method for selecting a random batch of transitions for training.
-#
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -133,9 +71,6 @@ class ReplayMemory(object):
         return len(self.memory)
 
 
-######################################################################
-# Now, let's define our model. But first, let quickly recap what a DQN is.
-#
 # DQN algorithm
 # -------------
 #
@@ -249,47 +184,30 @@ resize = T.Compose([T.ToPILImage(),
                     T.Resize(40, interpolation=Image.CUBIC),
                     T.ToTensor()])
 
+    #def get_cart_location(screen_width):
+    #world_width = env.x_threshold * 2
+    #scale = screen_width / world_width
+    #return int(env.state[0] * scale + screen_width / 2.0)  # MIDDLE OF CART
 
-def get_cart_location(screen_width):
-    world_width = env.x_threshold * 2
-    scale = screen_width / world_width
-    return int(env.state[0] * scale + screen_width / 2.0)  # MIDDLE OF CART
+def get_screen(next_obserbation):
+        reshapeArray = np.zeros([210,25,3])
+        inputGraph = np.concatenate((reshapeArray,next_obserbation),axis = 1)
+        inputGraph = np.concatenate((inputGraph, reshapeArray),axis = 1)
 
-def get_screen():
-    # Returned screen requested by gym is 400x600x3, but is sometimes larger
-    # such as 800x1200x3. Transpose it into torch order (CHW).
-    screen = env.render(mode='rgb_array').transpose((2, 0, 1))
-    # Cart is in the lower half, so strip off the top and bottom of the screen
-    _, screen_height, screen_width = screen.shape
-    screen = screen[:, int(screen_height*0.4):int(screen_height * 0.8)]
-    view_width = int(screen_width * 0.6)
-    cart_location = get_cart_location(screen_width)
-    if cart_location < view_width // 2:
-        slice_range = slice(view_width)
-    elif cart_location > (screen_width - view_width // 2):
-        slice_range = slice(-view_width, None)
-    else:
-        slice_range = slice(cart_location - view_width // 2,
-                            cart_location + view_width // 2)
-    # Strip off the edges, so that we have a square image centered on a cart
-    screen = screen[:, :, slice_range]
-    # Convert to float, rescale, convert to torch tensor
-    # (this doesn't require a copy)
-    screen = np.ascontiguousarray(screen, dtype=np.float32) / 255
-    screen = torch.from_numpy(screen)
-    # Resize, and add a batch dimension (BCHW)
-    return resize(screen).unsqueeze(0).to(device)
+        #conversion Inputdata for network
+        nnInput = torch.FloatTensor([inputGraph]).transpose(1,3)#.transpose(2,3)
+
+        return nnInput
 
 
-env.reset()
-plt.figure()
-plt.imshow(get_screen().cpu().squeeze(0).permute(1, 2, 0).numpy(),
-           interpolation='none')
-plt.title('Example extracted screen')
-plt.show()
+inputGraph = env.reset()
+#plt.figure()
+#plt.imshow(get_screen(inputGraph).cpu().squeeze(0).permute(1, 2, 0).numpy(),
+#           interpolation='none')
+#plt.title('Example extracted screen')
+#plt.show()
 
 
-######################################################################
 # Training
 # --------
 #
@@ -311,17 +229,10 @@ plt.show()
 #    episode.
 #
 
-BATCH_SIZE = 128
-GAMMA = 0.999
-EPS_START = 0.9
-EPS_END = 0.05
-EPS_DECAY = 200
-TARGET_UPDATE = 10
-
 # Get screen size so that we can initialize layers correctly based on shape
 # returned from AI gym. Typical dimensions at this point are close to 3x40x90
 # which is the result of a clamped and down-scaled render buffer in get_screen()
-init_screen = get_screen()
+init_screen = get_screen(inputGraph)
 _, _, screen_height, screen_width = init_screen.shape
 
 # Get number of actions from gym action space
@@ -329,6 +240,7 @@ n_actions = env.action_space.n
 
 policy_net = DQN(screen_height, screen_width, n_actions).to(device)
 target_net = DQN(screen_height, screen_width, n_actions).to(device)
+
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
@@ -347,28 +259,30 @@ def select_action(state):
     steps_done += 1
     if sample > eps_threshold:
         with torch.no_grad():
+            #print("policy_net")
             # t.max(1) will return largest column value of each row.
             # second column on max result is index of where max element was
             # found, so we pick action with the larger expected reward.
             return policy_net(state).max(1)[1].view(1, 1)
     else:
+        #print("random")
         return torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long)
 
 
-episode_durations = []
+episode_rewards = []
 
 
-def plot_durations():
+def plot_rewards():
     plt.figure(2)
     plt.clf()
-    durations_t = torch.tensor(episode_durations, dtype=torch.float)
+    rewards_forplot = torch.tensor(episode_rewards, dtype=torch.float)
     plt.title('Training...')
     plt.xlabel('Episode')
-    plt.ylabel('Duration')
-    plt.plot(durations_t.numpy())
+    plt.ylabel('Rewards')
+    plt.plot(rewards_forplot.numpy())
     # Take 100 episode averages and plot them too
-    if len(durations_t) >= 100:
-        means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
+    if len(rewards_forplot) >= 100:
+        means = rewards_forplot.unfold(0, 100, 1).mean(1).view(-1)
         means = torch.cat((torch.zeros(99), means))
         plt.plot(means.numpy())
 
@@ -376,6 +290,7 @@ def plot_durations():
     if is_ipython:
         display.clear_output(wait=True)
         display.display(plt.gcf())
+
 
 ######################################################################
 # Training loop
@@ -453,42 +368,61 @@ def optimize_model():
 # duration improvements.
 #
 
-num_episodes = 50
-for i_episode in range(num_episodes):
-    # Initialize the environment and state
-    env.reset()
-    last_screen = get_screen()
-    current_screen = get_screen()
-    state = current_screen - last_screen
-    for t in count():
-        # Select and perform an action
-        action = select_action(state)
-        _, reward, done, _ = env.step(action.item())
-        reward = torch.tensor([reward], device=device)
+continue_epsode = True
 
-        # Observe new state
-        last_screen = current_screen
-        current_screen = get_screen()
-        if not done:
-            next_state = current_screen - last_screen
-        else:
-            next_state = None
+num_episodes = EPISODES_NUM
+while continue_epsode:
+    for i_episode in range(num_episodes):
+        # Initialize the environment and state
+        inputGraph = env.reset()
+        last_screen = get_screen(inputGraph)
+        current_screen = last_screen
+        state = current_screen
+        for t in count():
+            # Select and perform an action
+            action = select_action(state)
+            #print(action.item())
+            inputGraph, reward, done, _ = env.step(action.item())
+            reward = torch.tensor([reward], device=device)
 
-        # Store the transition in memory
-        memory.push(state, action, next_state, reward)
+            if RENDER:
+                env.render()
 
-        # Move to the next state
-        state = next_state
+            # Observe new stat
+            last_screen = current_screen
+            current_screen = get_screen(inputGraph)
+            if not done:
+                next_state = current_screen - last_screen
+            else:
+                next_state = None
 
-        # Perform one step of the optimization (on the target network)
-        optimize_model()
-        if done:
-            episode_durations.append(t + 1)
-            plot_durations()
+            # Store the transition in memory
+            memory.push(state, action, next_state, reward)
+
+            # Move to the next state
+            state = next_state
+
+            # Perform one step of the optimization (on the target network)
+            optimize_model()
+            if done:
+                episode_rewards.append(reward)
+                plot_rewards()
+                break
+        # Update the target network, copying all weights and biases in DQN
+        if i_episode % TARGET_UPDATE == 0:
+            target_net.load_state_dict(policy_net.state_dict())
+    while True:
+        print("continue?[y/n]")
+        ans = input()
+        if ans == "y":
+            print("input episodes num to add:")
+            num_episodes = int(input())
             break
-    # Update the target network, copying all weights and biases in DQN
-    if i_episode % TARGET_UPDATE == 0:
-        target_net.load_state_dict(policy_net.state_dict())
+        elif ans == "n":
+            continue_epsode = False
+            break
+        else:
+            print("please answer y/n")
 
 print('Complete')
 env.render()

@@ -77,7 +77,7 @@ RENDER = True
 
 EPISODES_NUM = 5
 
-BATCH_SIZE = 256
+BATCH_SIZE = 1024
 GAMMA = 0.999
 
 #epsilon_greedy
