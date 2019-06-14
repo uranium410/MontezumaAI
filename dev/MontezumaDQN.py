@@ -16,18 +16,18 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
-RENDER = True
+RENDER = False
 
-EPISODES_NUM = 1000
+EPISODES_NUM = 100
 
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 GAMMA = 0.999
 
 
 #epsilon_greedy
 EPS_START = 0.9
 EPS_END = 0.05
-EPS_DECAY = 2000
+EPS_DECAY = 200
 TARGET_UPDATE = 10
 
 env = gym.make('Breakout-v0').unwrapped
@@ -80,7 +80,7 @@ class DQN(nn.Module):
 
     def __init__(self, h, w, outputs):
         super(DQN, self).__init__()
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=5, stride=2)
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=5, stride=2)
         self.bn1 = nn.BatchNorm2d(16)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=5, stride=2)
         self.bn2 = nn.BatchNorm2d(32)
@@ -112,12 +112,12 @@ resize = T.Compose([T.ToPILImage(),
                     T.ToTensor()])
 
 def get_screen(next_obserbation):
-        reshapeArray = np.zeros([210,25,3])
-        inputGraph = np.concatenate((reshapeArray,next_obserbation),axis = 1)
-        inputGraph = np.concatenate((inputGraph, reshapeArray),axis = 1)
+        nnInput = torch.FloatTensor([inputGraph])
 
         #conversion Inputdata for network
-        nnInput = torch.FloatTensor([inputGraph]).transpose(1,3).to(device)#.transpose(2,3)
+        nnInput = nnInput.transpose(1,3).to(device)#.transpose(2,3)
+        a,b,c = torch.chunk(nnInput, 3, dim = 1)
+        nnInput = (a + b + c)/3
 
         return nnInput
 
@@ -268,7 +268,7 @@ while continue_epsode:
             last_screen = current_screen
             current_screen = get_screen(inputGraph)
             if not done:
-                next_state = current_screen
+                next_state = current_screen - last_screen
             else:
                 next_state = None
 
