@@ -16,11 +16,11 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
-RENDER = False
+RENDER = True
 
-EPISODES_NUM = 100
+EPISODES_NUM = 1
 
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 GAMMA = 0.999
 
 
@@ -289,10 +289,10 @@ while continue_epsode:
             target_net.load_state_dict(policy_net.state_dict())
     while True:
         print("continue?[y/n]")
-        ans = inpt()
+        ans = input()
         if ans == "y":
             print("input episodes num to add:")
-            num_episodes = input()
+            num_episodes = int(input())
             break
         elif ans == "n":
             continue_epsode = False
