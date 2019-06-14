@@ -18,9 +18,9 @@ import torchvision.transforms as T
 
 RENDER = True
 
-EPISODES_NUM = 5
+EPISODES_NUM = 1000
 
-BATCH_SIZE = 128
+BATCH_SIZE = 32
 GAMMA = 0.999
 
 
@@ -30,7 +30,7 @@ EPS_END = 0.05
 EPS_DECAY = 2000
 TARGET_UPDATE = 10
 
-env = gym.make('MontezumaRevenge-v0').unwrapped
+env = gym.make('Breakout-v0').unwrapped
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -41,7 +41,10 @@ plt.ion()
 
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(device)
+print("Device Type:",device)
+print("rendering:", RENDER)
+print("Batch size:", BATCH_SIZE)
+print("GAMMA:", GAMMA)
 
 
 # Replay Memory
@@ -108,18 +111,13 @@ resize = T.Compose([T.ToPILImage(),
                     T.Resize(40, interpolation=Image.CUBIC),
                     T.ToTensor()])
 
-    #def get_cart_location(screen_width):
-    #world_width = env.x_threshold * 2
-    #scale = screen_width / world_width
-    #return int(env.state[0] * scale + screen_width / 2.0)  # MIDDLE OF CART
-
 def get_screen(next_obserbation):
         reshapeArray = np.zeros([210,25,3])
         inputGraph = np.concatenate((reshapeArray,next_obserbation),axis = 1)
         inputGraph = np.concatenate((inputGraph, reshapeArray),axis = 1)
 
         #conversion Inputdata for network
-        nnInput = torch.FloatTensor([inputGraph]).transpose(1,3)#.transpose(2,3)
+        nnInput = torch.FloatTensor([inputGraph]).transpose(1,3).to(device)#.transpose(2,3)
 
         return nnInput
 
@@ -139,20 +137,15 @@ _, _, screen_height, screen_width = init_screen.shape
 # Get number of actions from gym action space
 n_actions = env.action_space.n
 
-#policy_net = DQN(screen_height, screen_width, n_actions).to(device)
-#target_net = DQN(screen_height, screen_width, n_actions).to(device)
-if device == "cuda":
-    policy_net = DQN(screen_height, screen_width, n_actions).cuda()
-    target_net = DQN(screen_height, screen_width, n_actions).cuda()
-else:
-    policy_net = DQN(screen_height, screen_width, n_actions)
-    target_net = DQN(screen_height, screen_width, n_actions)
+policy_net = DQN(screen_height, screen_width, n_actions).to(device)
+target_net = DQN(screen_height, screen_width, n_actions).to(device)
+
 
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
 optimizer = optim.RMSprop(policy_net.parameters())
-memory = ReplayMemory(100)
+memory = ReplayMemory(10000)
 
 
 steps_done = 0
