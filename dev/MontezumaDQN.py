@@ -145,7 +145,7 @@ target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
 optimizer = optim.RMSprop(policy_net.parameters())
-memory = ReplayMemory(10000)
+memory = ReplayMemory(1000)
 
 
 steps_done = 0
@@ -250,12 +250,16 @@ while continue_epsode:
         last_screen = get_screen(inputGraph)
         current_screen = last_screen
         state = current_screen
+
+        totalReward = 0
         for t in count():
             # Select and perform an action
             action = select_action(state)
             #print(action.item())
             inputGraph, reward, done, _ = env.step(action.item())
             reward = torch.tensor([reward], device=device)
+
+            totalReward += reward.item()
 
             if RENDER:
                 env.render()
@@ -277,7 +281,7 @@ while continue_epsode:
             # Perform one step of the optimization (on the target network)
             optimize_model()
             if done:
-                episode_rewards.append(reward)
+                episode_rewards.append(totalReward)
                 plot_rewards()
                 break
         # Update the target network, copying all weights and biases in DQN
