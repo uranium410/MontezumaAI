@@ -29,10 +29,10 @@ GAMMA = 0.999
 #epsilon_greedy
 EPS_START = 0.9
 EPS_END = 0.05
-EPS_DECAY = 2000
+EPS_DECAY = 200
 TARGET_UPDATE = 10
 
-env = gym.make('MontezumaRevenge-v0').unwrapped
+env = gym.make('Breakout-v0').unwrapped
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -96,6 +96,11 @@ class DQN(nn.Module):
         convw = conv2d_size_out(conv2d_size_out(conv2d_size_out(w)))
         convh = conv2d_size_out(conv2d_size_out(conv2d_size_out(h)))
         linear_input_size = convw * convh * 32
+        
+        #self.linear = nn.Lenear(linear_input_size, 128)
+
+        #self.lstm = nn.LSTM()
+
         self.head = nn.Linear(linear_input_size, outputs)
 
     # Called with either one element to determine next action, or a batch
@@ -104,6 +109,8 @@ class DQN(nn.Module):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
+        #x = F.relu(self.linear(x.view(x.size(0), -1)))
+        #x = self.lstm(x)
         return self.head(x.view(x.size(0), -1))
 
 
@@ -254,7 +261,7 @@ while continue_epsode:
         state = current_screen
 
         totalReward = 0
-        inputGraph, reward, done, _ = env.step(0)
+        inputGraph, reward, done, beforeLives = env.step(0)
         
 
         for t in count():
@@ -262,6 +269,9 @@ while continue_epsode:
             action = select_action(state)
             #print(action.item())
             inputGraph, reward, done, lives = env.step(action.item())
+            if not beforeLives == lives:
+                reward -= 1
+            beforeLives = lives
 
 
             reward = torch.tensor([reward], device=device)

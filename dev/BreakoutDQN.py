@@ -29,10 +29,10 @@ GAMMA = 0.999
 #epsilon_greedy
 EPS_START = 0.9
 EPS_END = 0.05
-EPS_DECAY = 2000
+EPS_DECAY = 200
 TARGET_UPDATE = 10
 
-env = gym.make('MontezumaRevenge-v0').unwrapped
+env = gym.make('Breakout-v0').unwrapped
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -254,7 +254,7 @@ while continue_epsode:
         state = current_screen
 
         totalReward = 0
-        inputGraph, reward, done, _ = env.step(0)
+        inputGraph, reward, done, beforeLives = env.step(0)
         
 
         for t in count():
@@ -262,6 +262,9 @@ while continue_epsode:
             action = select_action(state)
             #print(action.item())
             inputGraph, reward, done, lives = env.step(action.item())
+            if not beforeLives == lives:
+                reward -= 1
+            beforeLives = lives
 
 
             reward = torch.tensor([reward], device=device)
