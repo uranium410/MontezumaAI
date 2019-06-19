@@ -25,6 +25,8 @@ EPISODES_NUM = 500
 BATCH_SIZE = 32
 GAMMA = 0.999
 
+REPLAYMEMORY_NUM = 10000
+
 
 #epsilon_greedy
 EPS_START = 0.9
@@ -147,7 +149,7 @@ target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
 optimizer = optim.RMSprop(policy_net.parameters())
-memory = ReplayMemory(1000)
+memory = ReplayMemory(REPLAYMEMORY_NUM)
 
 
 steps_done = 0
