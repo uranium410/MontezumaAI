@@ -97,11 +97,13 @@ class DQN(nn.Module):
         convh = conv2d_size_out(conv2d_size_out(conv2d_size_out(h)))
         linear_input_size = convw * convh * 32
         
-        #self.linear = nn.Lenear(linear_input_size, 128)
+        self.linear = nn.Linear(linear_input_size, 128)
 
-        #self.lstm = nn.LSTM()
+        self.lstm = nn.LSTM(input_size=128,hidden_size=32,batch_first=True)
+        self.c = torch.zeros(32)
 
-        self.head = nn.Linear(linear_input_size, outputs)
+        #self.head = nn.Linear(linear_input_size, outputs)
+        self.head = nn.Linear(128, outputs)
 
     # Called with either one element to determine next action, or a batch
     # during optimization. Returns tensor([[left0exp,right0exp]...]).
@@ -109,9 +111,10 @@ class DQN(nn.Module):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
-        #x = F.relu(self.linear(x.view(x.size(0), -1)))
-        #x = self.lstm(x)
-        return self.head(x.view(x.size(0), -1))
+        x = F.relu(self.linear(x.view(x.size(0), -1)))
+        x, self.c = self.lstm(x.view(1,1,128))
+        x = x.view(x.size(0), -1)
+        return self.head(x)
 
 
 # Input extraction
