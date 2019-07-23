@@ -21,7 +21,7 @@ class Predictor(nn.Module):
 
         return output
 
-def mkDataSet(data_size, data_length=200, freq=120., noise=0.1):
+def mkDataSet(data_size, data_length=400, blackOut_length=200, freq=120., noise=0.1):
     """
     params\n
     data_size : データセットサイズ\n
@@ -34,10 +34,18 @@ def mkDataSet(data_size, data_length=200, freq=120., noise=0.1):
     """
     train_x = []
     train_t = []
-    
+
     for offset in range(data_size):
         train_x.append([[math.sin(2 * math.pi * (offset + i) / freq) + np.random.normal(loc=0.0, scale=noise)] for i in range(data_length)])
         train_t.append([math.sin(2 * math.pi * (offset + data_length) / freq)])
+
+    train_x_correct = train_x
+    train_t_correct = train_t
+
+    for j in range(data_size):
+        for i in range(data_length):
+            if i > data_length - blackOut_length:
+                train_x[j][i][0]=0
 
     with open('sin.csv', 'w', newline='') as f:
         writer = csv.writer(f)
@@ -47,7 +55,7 @@ def mkDataSet(data_size, data_length=200, freq=120., noise=0.1):
     with open('sinEnd.csv', 'w', newline='') as f:
         writer = csv.writer(f)
         for i in range(data_length):
-            writer.writerow([train_x[data_length-1][i][0]])
+            writer.writerow([train_x[data_size-1][i][0]])
 
     return train_x, train_t
 
@@ -66,7 +74,7 @@ def mkRandomBatch(train_x, train_t, batch_size=10):
     return torch.tensor(batch_x), torch.tensor(batch_t)
 
 def main():
-    training_size = 10000
+    training_size = 100
     test_size = 1000
     epochs_num = 1000
     hidden_size = 5
